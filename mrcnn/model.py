@@ -252,7 +252,7 @@ def clip_boxes_graph(boxes, window):
     return clipped
 
 
-class ProposalLayer(KE.Layer):
+class ProposalLayer(KL.Layer):
     """Receives anchor scores and selects a subset to pass as proposals
     to the second stage. Filtering is done based on anchor scores and
     non-max suppression to remove overlaps. It also applies bounding
@@ -341,7 +341,7 @@ def log2_graph(x):
     return tf.math.log(x) / tf.math.log(2.0)
 
 
-class PyramidROIAlign(KE.Layer):
+class PyramidROIAlign(KL.Layer):
     """Implements ROI Pooling on multiple levels of the feature pyramid.
 
     Params:
@@ -619,7 +619,7 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
     return rois, roi_gt_class_ids, deltas, masks
 
 
-class DetectionTargetLayer(KE.Layer):
+class DetectionTargetLayer(KL.Layer):
     """Subsamples proposals and generates target box refinement, class_ids,
     and masks for each.
 
@@ -779,7 +779,7 @@ def refine_detections_graph(rois, probs, deltas, window, config):
     return detections
 
 
-class DetectionLayer(KE.Layer):
+class DetectionLayer(KL.Layer):
     """Takes classified proposal boxes and their bounding box deltas and
     returns the final detection boxes.
 
@@ -853,8 +853,7 @@ def rpn_graph(feature_map, anchors_per_location, anchor_stride):
                   activation='linear', name='rpn_class_raw')(shared)
 
     # Reshape to [batch, anchors, 2]
-    rpn_class_logits = KL.Lambda(
-        lambda t: tf.reshape(t, [tf.shape(t)[0], -1, 2]))(x)
+    rpn_class_logits = KL.Reshape((-1, 2))(x)
 
     # Softmax on last dimension of BG/FG.
     rpn_probs = KL.Activation(
@@ -866,7 +865,7 @@ def rpn_graph(feature_map, anchors_per_location, anchor_stride):
                   activation='linear', name='rpn_bbox_pred')(shared)
 
     # Reshape to [batch, anchors, 4]
-    rpn_bbox = KL.Lambda(lambda t: tf.reshape(t, [tf.shape(t)[0], -1, 4]))(x)
+    rpn_bbox = KL.Reshape((-1, 4))(x)
 
     return [rpn_class_logits, rpn_probs, rpn_bbox]
 
@@ -947,8 +946,7 @@ def fpn_classifier_graph(rois, feature_maps, image_meta,
     x = KL.TimeDistributed(KL.Dense(num_classes * 4, activation='linear'),
                            name='mrcnn_bbox_fc')(shared)
     # Reshape to [batch, num_rois, NUM_CLASSES, (dy, dx, log(dh), log(dw))]
-    s = K.int_shape(x)
-    mrcnn_bbox = KL.Reshape((s[1], num_classes, 4), name="mrcnn_bbox")(x)
+    mrcnn_bbox = KL.Reshape((num_classes, 4), name="mrcnn_bbox")(x)
 
     return mrcnn_class_logits, mrcnn_probs, mrcnn_bbox
 
